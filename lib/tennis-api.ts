@@ -13,7 +13,6 @@ export interface TennisMatch {
 }
 
 const seenMatches = new Map<string, { homeScore: number; awayScore: number; status: string }>()
-const FLASHSCORE_TENNIS_URL = 'https://www.flashscore.it/tennis/diretta/'
 
 const mockMatches = [
   {
@@ -49,14 +48,19 @@ const mockMatches = [
 ]
 
 async function fetchPage(): Promise<string> {
-  const res = await fetch(FLASHSCORE_TENNIS_URL, {
+  const res = await fetch('https://www.flashscore.it/tennis/diretta/', {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept-Language': 'it-IT,it;q=0.9',
-      'Accept': 'text/html',
+      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
     },
     signal: AbortSignal.timeout(15000),
   })
+  if (!res.ok) {
+    throw new Error(`FlashScore blocked: ${res.status}`)
+  }
   return res.text()
 }
 
@@ -145,12 +149,17 @@ export async function checkTennisMatches(useMock: boolean = false): Promise<Tenn
     } else {
       const html = await fetchPage()
       matches = parseMatches(html)
+
+      if (matches.length === 0) {
+        sendTelegramMessage('⚠️ WARNING: Possible block from FlashScore! No matches returned.')
+      }
     }
 
     processMatches(matches)
     return matches
   } catch (error) {
     console.error('Error checking tennis matches:', error)
+    sendTelegramMessage(`❌ Error: ${error}`)
     return []
   }
 }
