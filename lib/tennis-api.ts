@@ -49,35 +49,25 @@ const mockMatches = [
 
 async function fetchPage(): Promise<string> {
   const urls = [
+    'https://www.atptour.com/en/scores/current',
+    'https://www.wtatennis.com/scores/live',
     'https://www.tennisscore.com/live',
     'https://www.flashscore.com/tennis/live/',
-    'https://www.sofascore.com/tennis/live',
-    'https://www.bet365.com#/AX/B1/C1/D100/E50441348',
   ]
   
-  let lastError = ''
   for (const url of urls) {
     try {
       const res = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept': 'text/html',
         },
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(10000),
       })
-      if (res.ok) {
-        const text = await res.text()
-        if (text.includes('tennis') || text.includes('match') || text.length > 5000) {
-          return text
-        }
-      }
-      lastError = `${url}: ${res.status}`
-    } catch (e) {
-      lastError = String(e)
-    }
+      if (res.ok) return res.text()
+    } catch { continue }
   }
-  throw new Error(`All sources blocked`)
+  throw new Error('All sources failed')
 }
 
 function parseMatches(html: string): TennisMatch[] {
