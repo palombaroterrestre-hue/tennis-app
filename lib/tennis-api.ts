@@ -15,6 +15,39 @@ export interface TennisMatch {
 const seenMatches = new Map<string, { homeScore: number; awayScore: number; status: string }>()
 const FLASHSCORE_TENNIS_URL = 'https://www.flashscore.it/tennis/diretta/'
 
+const mockMatches = [
+  {
+    id: 'mock1',
+    homePlayer: 'Djokovic',
+    awayPlayer: 'Alcaraz',
+    homeScore: 2,
+    awayScore: 1,
+    competition: 'ATP',
+    status: 'SET 3',
+    time: 'Set 3'
+  },
+  {
+    id: 'mock2',
+    homePlayer: 'Sinner',
+    awayPlayer: 'Medvedev',
+    homeScore: 1,
+    awayScore: 2,
+    competition: 'ATP',
+    status: 'SET 2',
+    time: 'Set 2'
+  },
+  {
+    id: 'mock3',
+    homePlayer: 'Swiatek',
+    awayPlayer: 'Gauff',
+    homeScore: 2,
+    awayScore: 0,
+    competition: 'WTA',
+    status: 'FT',
+    time: 'Finished'
+  }
+]
+
 async function fetchPage(): Promise<string> {
   const res = await fetch(FLASHSCORE_TENNIS_URL, {
     headers: {
@@ -58,53 +91,63 @@ function parseMatches(html: string): TennisMatch[] {
   return matches
 }
 
-export async function checkTennisMatches(): Promise<TennisMatch[]> {
-  try {
-    const html = await fetchPage()
-    const matches = parseMatches(html)
+function processMatches(matches: TennisMatch[]): void {
+  for (const match of matches) {
+    const prev = seenMatches.get(match.id)
 
-    for (const match of matches) {
-      const prev = seenMatches.get(match.id)
-
-      if (!prev) {
-        seenMatches.set(match.id, {
-          homeScore: match.homeScore,
-          awayScore: match.awayScore,
-          status: match.status,
-        })
-        continue
-      }
-
-      const isEnded = 
-        match.status.toLowerCase().includes('ft') ||
-        match.status.toLowerCase().includes('finished') ||
-        match.status.toLowerCase().includes('terminato') ||
-        match.status.toLowerCase().includes('completed')
-
-      const wasNotEnded = 
-        !prev.status.toLowerCase().includes('ft') &&
-        !prev.status.toLowerCase().includes('finished') &&
-        !prev.status.toLowerCase().includes('terminato')
-
-      if (isEnded && wasNotEnded) {
-        const msg = formatMatchEnded(
-          match.homePlayer,
-          match.awayPlayer,
-          match.homeScore,
-          match.awayScore,
-          match.competition
-        )
-        console.log('Match ended:', msg)
-        await sendTelegramMessage(msg)
-      }
-
+    if (!prev) {
       seenMatches.set(match.id, {
         homeScore: match.homeScore,
         awayScore: match.awayScore,
         status: match.status,
       })
+      continue
     }
 
+    const isEnded = 
+      match.status.toLowerCase().includes('ft') ||
+      match.status.toLowerCase().includes('finished') ||
+      match.status.toLowerCase().includes('terminato') ||
+      match.status.toLowerCase().includes('completed')
+
+    const wasNotEnded = 
+      !prev.status.toLowerCase().includes('ft') &&
+      !prev.status.toLowerCase().includes('finished') &&
+      !prev.status.toLowerCase().includes('terminato')
+
+    if (isEnded && wasNotEnded) {
+      const msg = formatMatchEnded(
+        match.homePlayer,
+        match.awayPlayer,
+        match.homeScore,
+        match.awayScore,
+        match.competition
+      )
+      console.log('Match ended:', msg)
+      sendTelegramMessage(msg)
+    }
+
+    seenMatches.set(match.id, {
+      homeScore: match.homeScore,
+      awayScore: match.awayScore,
+      status: match.status,
+    })
+  }
+}
+
+export async function checkTennisMatches(useMock: boolean = false): Promise<TennisMatch[]> {
+  try {
+    let matches: TennisMatch[]
+
+    if (useMock) {
+      console.log('Using mock data for testing')
+      matches = mockMatches
+    } else {
+      const html = await fetchPage()
+      matches = parseMatches(html)
+    }
+
+    processMatches(matches)
     return matches
   } catch (error) {
     console.error('Error checking tennis matches:', error)
@@ -112,8 +155,11 @@ export async function checkTennisMatches(): Promise<TennisMatch[]> {
   }
 }
 
-export async function getLiveTennisMatches(): Promise<TennisMatch[]> {
+export async function getLiveTennisMatches(useMock: boolean = false): Promise<TennisMatch[]> {
   try {
+    if (useMock) {
+      return mockMatches
+    }
     const html = await fetchPage()
     return parseMatches(html)
   } catch {
