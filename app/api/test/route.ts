@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { checkTennisMatches } from '@/lib/tennis-api'
+import { sendTelegramMessage } from '@/lib/telegram'
 
 export async function GET() {
-  await checkTennisMatches(true)
-  return NextResponse.json({ status: 'ok', message: 'Test with mock data complete' })
+  const msg = `🎾 <b>TEST NOTIFICATION!</b>\nTennis App is working!\n⏱️ ${new Date().toLocaleTimeString()}`
+  const result = await sendTelegramMessage(msg)
+  return NextResponse.json({ sent: result, time: new Date().toISOString() })
 }
