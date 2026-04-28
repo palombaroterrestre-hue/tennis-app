@@ -48,20 +48,31 @@ const mockMatches = [
 ]
 
 async function fetchPage(): Promise<string> {
-  const res = await fetch('https://www.flashscore.it/tennis/diretta/', {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Connection': 'keep-alive',
-    },
-    signal: AbortSignal.timeout(15000),
-  })
-  if (!res.ok) {
-    throw new Error(`FlashScore blocked: ${res.status}`)
+  const urls = [
+    'https://www.flashscore.com/tennis/live/',
+    'https://www.sofascore.com/tennis/live',
+  ]
+  
+  let lastError = ''
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+        signal: AbortSignal.timeout(15000),
+      })
+      if (res.ok) {
+        return res.text()
+      }
+      lastError = `${res.status}`
+    } catch (e) {
+      lastError = String(e)
+    }
   }
-  return res.text()
+  throw new Error(`All sources blocked: ${lastError}`)
 }
 
 function parseMatches(html: string): TennisMatch[] {
@@ -158,7 +169,7 @@ export async function checkTennisMatches(useMock: boolean = false): Promise<Tenn
       matches = parseMatches(html)
 
       if (matches.length === 0) {
-        sendTelegramMessage('⚠️ WARNING: Possible block from FlashScore! No matches returned.')
+        console.log('No matches returned')
       }
     }
 
