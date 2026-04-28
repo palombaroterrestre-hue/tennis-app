@@ -49,7 +49,7 @@ const mockMatches = [
 
 async function fetchPage(): Promise<string> {
   const urls = [
-    'https://site.api.espn.com/apis/site/v2/sports/tennis/teams/55/schedule',
+    'https://www.atptour.com/en/scores/current',
     'https://api.allorigins.win/raw?url=https://www.atptour.com/en/scores/current',
   ]
   
@@ -58,7 +58,7 @@ async function fetchPage(): Promise<string> {
       const res = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0',
-          'Accept': 'application/json, text/html',
+          'Accept': 'text/html',
         },
         signal: AbortSignal.timeout(10000),
       })
@@ -72,29 +72,53 @@ function parseMatches(html: string): TennisMatch[] {
   const $ = cheerio.load(html)
   const matches: TennisMatch[] = []
 
-  $('[data-event-type="match"]').each((_, el) => {
-    const eventId = $(el).attr('data-id') || ''
-    const homePlayer = $(el).find('[data-side="home"] .participant-name, [data-side="home"]').first().text().trim()
-    const awayPlayer = $(el).find('[data-side="away"] .participant-name, [data-side="away"]').first().text().trim()
-    const homeScore = parseInt($(el).find('[data-side="home"] .score').text()) || 0
-    const awayScore = parseInt($(el).find('[data-side="away"] .score').text()) || 0
-    const status = $(el).find('.time, .status').first().text().trim()
-    const time = $(el).find('.time, .time').first().text().trim()
-    const competition = $(el).closest('.sportName, .category').find('.name, .sportName').first().text().trim() || 'Tennis'
+  // ATP Tour structure
+  $('.event-table tbody tr').each((_, el) => {
+    const eventId = $(el).attr('id') || String(Math.random())
+    const homePlayer = $(el).find('.team-left .player-name').text().trim()
+    const awayPlayer = $(el).find('.team-right .player-name').text().trim()
+    const scoreText = $(el).find('.score-board').text()
+    const status = $(el).find('.time-slot').text().trim()
 
     if (!homePlayer || !awayPlayer) return
+
+    // Parse score like "6-4 6-3" or "6-4 3-6 6-3"
+    const homeScore = (scoreText.match(/\d+(?=-\d)/g) || []).length
+    const awayScore = (scoreText.match(/(?<=-)\d+/g) || []).length
 
     matches.push({
       id: eventId,
       homePlayer,
       awayPlayer,
-      homeScore,
-      awayScore,
-      competition,
-      status,
-      time,
+      homeScore: homeScore + awayScore > 0 ? homeScore : 0,
+      awayScore: homeScore + awayScore > 0 ? awayScore : 0,
+      competition: 'ATP',
+      status: status || 'LIVE',
+      time: status || '',
     })
   })
+
+  // Fallback: general match finder
+  if (matches.length === 0) {
+    $('[class*="match"], [class*="event"]').each((_, el) => {
+      const eventId = $(el).attr('id') || String(Math.random())
+      const homePlayer = $(el).find('[class*="home"], [class*="team1"]').first().text().trim()
+      const awayPlayer = $(el).find('[class*="away"], [class*="team2"]').first().text().trim()
+
+      if (homePlayer && awayPlayer && homePlayer.length > 1 && awayPlayer.length > 1) {
+        matches.push({
+          id: eventId,
+          homePlayer,
+          awayPlayer,
+          homeScore: 0,
+          awayScore: 0,
+          competition: 'ATP',
+          status: 'LIVE',
+          time: '',
+        })
+      }
+    })
+  }
 
   return matches
 }
