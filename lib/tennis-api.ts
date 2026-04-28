@@ -169,13 +169,18 @@ export async function checkTennisMatches(useMock: boolean = false): Promise<Tenn
 }
 
 export async function getLiveTennisMatches(useMock: boolean = false): Promise<TennisMatch[]> {
+  if (useMock) {
+    return mockMatches
+  }
   try {
-    if (useMock) {
-      return mockMatches
-    }
     const html = await fetchPage()
     return parseMatches(html)
-  } catch {
+  } catch (e) {
+    console.log('Fetch error:', e)
     return []
   }
+}
+
+export async function getErrorLog(): Promise<string> {
+  return 'Check server logs'
 }
