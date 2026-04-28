@@ -49,8 +49,9 @@ const mockMatches = [
 
 async function fetchPage(): Promise<string> {
   const urls = [
-    'https://www.atptour.com/en/scores/current',
+    'https://corsproxy.io/?https://www.atptour.com/en/scores/current',
     'https://api.allorigins.win/raw?url=https://www.atptour.com/en/scores/current',
+    'https://www.atptour.com/en/scores/current',
   ]
   
   for (const url of urls) {
