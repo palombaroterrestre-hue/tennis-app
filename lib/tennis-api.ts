@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio'
-import { sendTelegramMessage, formatMatchEnded } from './telegram'
+import { sendTelegramMessage } from './telegram'
 
 export interface TennisMatch {
   id: string
@@ -95,6 +95,14 @@ function parseMatches(html: string): TennisMatch[] {
   return matches
 }
 
+function formatScoreUpdate(match: TennisMatch): string {
+  return `🎾 <b>SCORE UPDATE!</b>\n${match.competition}\n${match.homePlayer} ${match.homeScore} - ${match.awayScore} ${match.awayPlayer}\n⏱️ ${match.status}`
+}
+
+function formatMatchEnded(match: TennisMatch): string {
+  return `🏁 <b>PARTITA TERMINATA!</b>\n${match.competition}\n${match.homePlayer} ${match.homeScore} - ${match.awayScore} ${match.awayPlayer}`
+}
+
 function processMatches(matches: TennisMatch[]): void {
   for (const match of matches) {
     const prev = seenMatches.get(match.id)
@@ -108,27 +116,26 @@ function processMatches(matches: TennisMatch[]): void {
       continue
     }
 
+    const scoreChanged = match.homeScore !== prev.homeScore || match.awayScore !== prev.awayScore
     const isEnded = 
       match.status.toLowerCase().includes('ft') ||
       match.status.toLowerCase().includes('finished') ||
       match.status.toLowerCase().includes('terminato') ||
       match.status.toLowerCase().includes('completed')
 
-    const wasNotEnded = 
-      !prev.status.toLowerCase().includes('ft') &&
-      !prev.status.toLowerCase().includes('finished') &&
-      !prev.status.toLowerCase().includes('terminato')
-
-    if (isEnded && wasNotEnded) {
-      const msg = formatMatchEnded(
-        match.homePlayer,
-        match.awayPlayer,
-        match.homeScore,
-        match.awayScore,
-        match.competition
-      )
-      console.log('Match ended:', msg)
-      sendTelegramMessage(msg)
+    if (scoreChanged && !isEnded) {
+      console.log('Score changed:', match.homePlayer, match.homeScore, '-', match.awayScore, match.awayPlayer)
+      sendTelegramMessage(formatScoreUpdate(match))
+    } else if (isEnded) {
+      const wasNotEnded = 
+        !prev.status.toLowerCase().includes('ft') &&
+        !prev.status.toLowerCase().includes('finished') &&
+        !prev.status.toLowerCase().includes('terminato')
+      
+      if (wasNotEnded) {
+        console.log('Match ended:', match.homePlayer, match.awayPlayer)
+        sendTelegramMessage(formatMatchEnded(match))
+      }
     }
 
     seenMatches.set(match.id, {
