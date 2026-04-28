@@ -123,13 +123,20 @@ function parseMatches(html: string): TennisMatch[] {
   return matches
 }
 
-function formatScoreUpdate(match: TennisMatch): string {
-  return `🎾 <b>SCORE UPDATE!</b>\n${match.competition}\n${match.homePlayer} ${match.homeScore} - ${match.awayScore} ${match.awayPlayer}\n⏱️ ${match.status}`
+function formatAllMatches(matches: TennisMatch[]): string {
+  if (matches.length === 0) return ''
+  
+  let msg = `🎾 <b>LIVE TENNIS (${matches.length})</b>\n\n`
+  
+  for (const m of matches.slice(0, 10)) {
+    msg += `${m.homePlayer} ${m.homeScore} - ${m.awayScore} ${m.awayPlayer}\n`
+    msg += `   ${m.status} ${m.time}\n\n`
+  }
+  
+  return msg.trim()
 }
 
-function formatMatchEnded(match: TennisMatch): string {
-  return `🏁 <b>PARTITA TERMINATA!</b>\n${match.competition}\n${match.homePlayer} ${match.homeScore} - ${match.awayScore} ${match.awayPlayer}`
-}
+const firstCheck = new Set<string>()
 
 function processMatches(matches: TennisMatch[]): void {
   for (const match of matches) {
@@ -141,6 +148,7 @@ function processMatches(matches: TennisMatch[]): void {
         awayScore: match.awayScore,
         status: match.status,
       })
+      firstCheck.add(match.id)
       continue
     }
 
@@ -152,8 +160,7 @@ function processMatches(matches: TennisMatch[]): void {
       match.status.toLowerCase().includes('completed')
 
     if (scoreChanged && !isEnded) {
-      console.log('Score changed:', match.homePlayer, match.homeScore, '-', match.awayScore, match.awayPlayer)
-      sendTelegramMessage(formatScoreUpdate(match))
+      sendTelegramMessage(`🎾 <b>SCORE UPDATE!</b>\n${match.homePlayer} ${match.homeScore} - ${match.awayScore} ${match.awayPlayer}\n⏱️ ${match.status}`)
     } else if (isEnded) {
       const wasNotEnded = 
         !prev.status.toLowerCase().includes('ft') &&
@@ -161,8 +168,7 @@ function processMatches(matches: TennisMatch[]): void {
         !prev.status.toLowerCase().includes('terminato')
       
       if (wasNotEnded) {
-        console.log('Match ended:', match.homePlayer, match.awayPlayer)
-        sendTelegramMessage(formatMatchEnded(match))
+        sendTelegramMessage(`🏁 <b>PARTITA TERMINATA!</b>\n${match.homePlayer} ${match.homeScore} - ${match.awayScore} ${match.awayPlayer}`)
       }
     }
 
@@ -172,9 +178,18 @@ function processMatches(matches: TennisMatch[]): void {
       status: match.status,
     })
   }
+
+  // Send all live matches on first check
+  if (firstCheck.size > 0 && matches.length > 0) {
+    const msg = formatAllMatches(matches)
+    if (msg) {
+      sendTelegramMessage(msg)
+      firstCheck.clear()
+    }
+  }
 }
 
-export async function checkTennisMatches(useMock: boolean = false): Promise<TennisMatch[]> {
+export async function checkTennisMatches(useMock: boolean = false, sendAllMatches: boolean = false): Promise<TennisMatch[]> {
   try {
     let matches: TennisMatch[]
 
@@ -184,7 +199,13 @@ export async function checkTennisMatches(useMock: boolean = false): Promise<Tenn
       matches = await getLiveTennisMatches()
     }
 
-    processMatches(matches)
+    if (sendAllMatches && matches.length > 0) {
+      const msg = formatAllMatches(matches)
+      if (msg) sendTelegramMessage(msg)
+    } else {
+      processMatches(matches)
+    }
+    
     return matches
   } catch (error) {
     console.error('Error:', error)

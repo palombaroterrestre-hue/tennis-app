@@ -5,8 +5,9 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const mock = searchParams.get('mock') === 'true'
-    const matches = await checkTennisMatches(mock)
-    return NextResponse.json({ status: 'ok', matchesCount: matches.length, mock })
+    const all = searchParams.get('all') === 'true'
+    const matches = await checkTennisMatches(mock, all)
+    return NextResponse.json({ status: 'ok', matchesCount: matches.length, mock, all })
   } catch (error) {
     const errorMsg = String(error)
     console.error('Check error:', errorMsg)
