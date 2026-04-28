@@ -49,18 +49,16 @@ const mockMatches = [
 
 async function fetchPage(): Promise<string> {
   const urls = [
-    'https://www.atptour.com/en/scores/current',
-    'https://www.wtatennis.com/scores/live',
-    'https://www.tennisscore.com/live',
-    'https://www.flashscore.com/tennis/live/',
+    'https://site.api.espn.com/apis/site/v2/sports/tennis/teams/55/schedule',
+    'https://api.allorigins.win/raw?url=https://www.atptour.com/en/scores/current',
   ]
   
   for (const url of urls) {
     try {
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0',
+          'Accept': 'application/json, text/html',
         },
         signal: AbortSignal.timeout(10000),
       })
