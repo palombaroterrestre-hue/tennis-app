@@ -49,8 +49,10 @@ const mockMatches = [
 
 async function fetchPage(): Promise<string> {
   const urls = [
+    'https://www.tennisscore.com/live',
     'https://www.flashscore.com/tennis/live/',
     'https://www.sofascore.com/tennis/live',
+    'https://www.bet365.com#/AX/B1/C1/D100/E50441348',
   ]
   
   let lastError = ''
@@ -58,21 +60,24 @@ async function fetchPage(): Promise<string> {
     try {
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
           'Accept-Language': 'en-US,en;q=0.9',
         },
         signal: AbortSignal.timeout(15000),
       })
       if (res.ok) {
-        return res.text()
+        const text = await res.text()
+        if (text.includes('tennis') || text.includes('match') || text.length > 5000) {
+          return text
+        }
       }
-      lastError = `${res.status}`
+      lastError = `${url}: ${res.status}`
     } catch (e) {
       lastError = String(e)
     }
   }
-  throw new Error(`All sources blocked: ${lastError}`)
+  throw new Error(`All sources blocked`)
 }
 
 function parseMatches(html: string): TennisMatch[] {
@@ -162,22 +167,15 @@ export async function checkTennisMatches(useMock: boolean = false): Promise<Tenn
     let matches: TennisMatch[]
 
     if (useMock) {
-      console.log('Using mock data for testing')
       matches = mockMatches
     } else {
-      const html = await fetchPage()
-      matches = parseMatches(html)
-
-      if (matches.length === 0) {
-        console.log('No matches returned')
-      }
+      matches = await getLiveTennisMatches()
     }
 
     processMatches(matches)
     return matches
   } catch (error) {
-    console.error('Error checking tennis matches:', error)
-    sendTelegramMessage(`❌ Error: ${error}`)
+    console.error('Error:', error)
     return []
   }
 }
